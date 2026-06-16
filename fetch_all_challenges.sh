@@ -97,9 +97,8 @@ mkdir -p "$BASE_DIR" #Erstellt denn Zielordner wenn er nicht existiert, -p verhi
 all_ids=() #Bash Array ind dem alle gültigen UUIDs gespeichert werden
 
 for page in 1 2 3; do #GitHub API paginiert die Ergebnisse, hier werden bis zu 300 Repos abgefragt (100 pro Seite)
-  ids=$(curl -s "https://api.github.com/orgs/${GITHUB_ORG}/repos?per_page=100&page=${page}" \               #<-- Shell Check Fehler:Unexpected start of line. If breaking lines, |/||/&& should be at the end of the previous one.
-
-    | python3 -c " #Python Skript filtert noch mal die Repos und extrahiert gültige UUIDs aus den Repo-Namen
+  ids=$(curl -s "https://api.github.com/orgs/${GITHUB_ORG}/repos?per_page=100&page=${page}" |
+    python3 -c " #Python Skript filtert noch mal die Repos und extrahiert gültige UUIDs aus den Repo-Namen
 import json, sys, re #Importiert die Module json, sys und re
 
 try:
