@@ -65,7 +65,7 @@ fetch_all_challenge() {
 import json, sys, re #Importiert die Module json, sys und re
 
 try: 
-    data = json.loads(sys.stdin.read()) #Liest die JSON Daten von stdin und parst sie in ein Python Objekt
+    data = json.loads(sys.stdin.read()) #Liest die JSON Daten von stdin und parst sie in ein Python Dictionary
 except Exception: #wenn das fehlschlägt wird eine Exception ausgelöst
     sys.exit(0) #Bei Fehler wird mit Status false zurückgegeben
 
