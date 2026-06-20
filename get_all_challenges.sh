@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fetch_all_challenges.sh
+# get_all_challenges.sh
 # Holt alle Challenge-Repos von STEMgraph und verarbeitet gültige depends_on-UUIDs rekursiv
 
 set -euo pipefail                               #Fehler bei ungültigen Variablen oder Befehlen
@@ -9,8 +9,8 @@ BASE_DIR="./challenges"                         #Es entseht ein Unterordner chal
 
 declare -A VISITED                              #Assoziatives Array, um bereits verarbeitete UUIDs nicht doppelt zu speichern
 
-#fetch_all_challenge: Holt ein Challenge-Repo, extrahiert gültige depends_on-UUIDs und ruft sich rekursiv auf
-fetch_all_challenge() { 
+#get_all_challenge: Holt ein Challenge-Repo, extrahiert gültige depends_on-UUIDs und ruft sich rekursiv auf
+get_all_challenge() { 
   local id="$1"                                 #Die Funktion wird in eine Variable gesetzt, so arbeite ich nur noch mit der id
 
   # Nur gültige UUIDs zulassen
@@ -80,14 +80,14 @@ if isinstance(deps, list):                      #Prüft ob depends_on eine Liste
 
   if [[ -z "$deps" ]]; then                     #Wenn keine gültigen Dependencies gefunden
     echo "    Keine gültigen UUID-Dependencies." #Gibt die Warnung aus
-    returnn                                     #Verlässt die Funktion
+    return                                     #Verlässt die Funktion
   fi                                            #Gültige Abhängigkeit dann weiter Veraerbeitem
 
   echo "    Depends on:"                        #Gibt die UUIDs der Abhängigkeiten aus
   while IFS= read -r dep_id; do                 #Liest die gültigen UUIDs Zeile für Zeile ein
     [[ -z "$dep_id" ]] && continue              #Wenn Zeile leer überspringen
     echo "      - $dep_id"                      #Gibt die gültige UUID aus
-    fetch_all_challenge "$dep_id"               #Ruft die Funktion rekursiv mit der gültigen UUID auf
+    get_all_challenge "$dep_id"               #Ruft die Funktion rekursiv mit der gültigen UUID auf
   done <<< "$deps"                              #Leitet UUIDs an while Schleife weiter, damit sie Zeile für Zeile verarbeitet werden
 }
 
@@ -127,7 +127,7 @@ echo "Gefundene Challenge-Repos: ${#all_ids[@]}" #Gibt die Anzahl der gefundenen
 echo                                            #Gibt die gefundenen UUIDs aus
 
 for id in "${all_ids[@]}"; do                   #Iteriert über alle gefundenen UUIDs in all_ids
-  fetch_all_challenge "$id"                     #Ruft die Funktion fetch_all_challenge mit jeder gefundenen UUID auf, um die Repos zu klonen und die Abhängigkeiten zu verarbeiten
+  get_all_challenge "$id"                       #Ruft die Funktion get_all_challenge mit jeder gefundenen UUID auf, um die Repos zu klonen und die Abhängigkeiten zu verarbeiten
 done                                            #Nachdem alle Repos verarbeitet wurden, gibt es eine Zusammenfassung der verarbeiteten Challenges aus
 
 echo                                            #Gibt eine leere Zeile aus

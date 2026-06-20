@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fetch_subgraph_challenges.sh
+# get_subgraph_challenges.sh
 # Baut aus den lokalen Challenges einen Abhängigkeits‑Graphen
 # und berechnet einen Pfad von einer Start‑Challenge zu einer Ziel‑Challenge.
 
@@ -21,7 +21,7 @@ TARGET_ID="$2"                                  #Challenge, bei der der Pfad end
 # Prüfen, ob der Basis‑Ordner existiert
 if [[ ! -d "$BASE_DIR" ]]; then                 #Wenn es ./challenges nicht gibt
   echo "FEHLER: Basisverzeichnis '$BASE_DIR' wurde nicht gefunden." #Gibt eine Fehlermeldung aus, wenn der Basisordner nicht gefunden wurde
-  echo "Bitte vorher 'fetch_all_challenges.sh' ausführen, damit die Repos lokal liegen." #Gibt eine Anweisung aus, was zu tun ist, damit die Repos lokal liegen
+  echo "Bitte vorher 'get_all_challenges.sh' ausführen, damit die Repos lokal liegen." #Gibt eine Anweisung aus, was zu tun ist, damit die Repos lokal liegen
   exit 1                                        #Verlässt das Skript mit einem Fehlercode, wenn der Basisordner nicht gefunden wurde
 fi                                              #Wenn der Basisordner existiert, wird das Skript fortgesetzt
 

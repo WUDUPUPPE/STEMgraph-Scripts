@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fetch_rekursiv_challenges.sh
+# get_rekursiv_challenges.sh
 # Holt alle Challenge-Repos von STEMgraph rekursiv über depends_on
 
 set -euo pipefail                               #Fehler bei ungültigen Variablen oder Befehlen
@@ -9,8 +9,8 @@ BASE_DIR="./challenges"                         #Es entseht ein Unterordner chal
 
 declare -A VISITED                              #Assoziatives Array, um bereits verarbeitete UUIDs nicht doppelt zu speichern
 
-#fetch_rekursiv_challenge: Holt ein Challenge-Repo, extrahiert gültige depends_on-UUIDs und ruft sich rekursiv auf
-fetch_rekursiv_challenge() { 
+#get_rekursiv_challenge: Holt ein Challenge-Repo, extrahiert gültige depends_on-UUIDs und ruft sich rekursiv auf
+get_rekursiv_challenge() { 
   local id="$1"                                 #Die Funktion wird in eine Variable gesetzt, so arbeite ich nur noch mit der id
 
   # Nur gültige UUIDs zulassen
@@ -74,7 +74,7 @@ print(' '.join(deps))                           #Gibt die gültigen UUIDs aus de
 
   # Rekursiv für jede Dependency
   for dep_id in $deps; do                       #Schleife über die gefundenen Dependencies, die in der Variable deps gespeichert sind
-    fetch_rekursiv_challenge "$dep_id"          #Ruft die Funktion fetch_rekursiv_challenge rekursiv für jede gefundene Dependency auf, um auch deren Repos zu holen
+    get_rekursiv_challenge "$dep_id"            #Ruft die Funktion get_rekursiv_challenge rekursiv für jede gefundene Dependency auf, um auch deren Repos zu holen
   done                                          #Ende der Schleife über die Dependencies
 }
 
@@ -86,7 +86,7 @@ if [[ $# -ne 1 ]]; then                         #Wenn die Anzahl der Argumente n
 fi                                              #Wenn die Anzahl der Argumente korrekt ist, wird das Skript fortgesetzt
 
 mkdir -p "$BASE_DIR"                            #Erstellt den Zielordner, falls er nicht existiert, -p verhindert Fehler, wenn er bereits existiert
-fetch_rekursiv_challenge "$1"                   #Ruft die Funktion fetch_rekursiv_challenge mit der ersten Argument auf, um die Rekursion zu starten und die Challenge-Repos zu holen
+get_rekursiv_challenge "$1"                     #Ruft die Funktion get_rekursiv_challenge mit der ersten Argument auf, um die Rekursion zu starten und die Challenge-Repos zu holen
 
 echo
 echo "Fertig. Insgesamt ${#VISITED[@]} Challenge(s) geholt:" #Gibt die Anzahl der gesammelten Challenges aus, die im VISITED Array gespeichert sind
