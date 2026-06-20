@@ -22,7 +22,7 @@ export OUTPUT_FILE                                 # OUTPUT_FILE für den Python
 
 # Hauptlogik in Python, weil JSON-Parsen und Listenbauen dort angenehmer ist
 python3 - << 'PY'
-import os                                          # os brauche ich für Pfade und Verzeichnisdurchläufe
+import os # os brauche ich für Pfade und Verzeichnisdurchläufe
 import json                                        # json brauche ich zum Einlesen und Schreiben der Metadaten
 
 base_dir = os.environ.get("BASE_DIR", "./challenges")   # BASE_DIR aus der Umgebung holen, Fallback ./challenges
