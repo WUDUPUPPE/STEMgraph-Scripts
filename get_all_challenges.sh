@@ -91,6 +91,7 @@ if isinstance(deps, list):                      #Prüft ob depends_on eine Liste
   done <<< "$deps"                              #Leitet UUIDs an while Schleife weiter, damit sie Zeile für Zeile verarbeitet werden
 }
 
+# Hilfsfunktion, um JSON-Metadaten aus README.md zu extrahieren
 echo "Lade Repo-Liste von github.com/${GITHUB_ORG}..." #GitHub-API wird abgefragt um die Repos der Organisation zu erhalten
 mkdir -p "$BASE_DIR"                            #Erstellt denn Zielordner wenn er nicht existiert, -p verhindert Fehler falls er existiert
 
