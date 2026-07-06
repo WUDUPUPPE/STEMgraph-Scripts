@@ -105,7 +105,7 @@ with open(output_file, "w", encoding="utf-8") as f:  # Datei zum Schreiben öffn
     json.dump(graph, f, indent=2, ensure_ascii=False) # JSON schön formatiert mit Einrückungen schreiben
 
 print(f"Fertig. {len(nodes)} Nodes und {len(edges)} Edges nach '{output_file}' geschrieben.")  # Kurze Zusammenfassung ausgeben
-PY                                                   
+PY
 # Ende des Python-Blocks
 
 echo "Export abgeschlossen."                         # Abschlussmeldung im Bash-Teil
