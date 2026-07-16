@@ -95,6 +95,9 @@ for entry in os.listdir(base_dir):          		# Jedes Element im challenges-Ordn
 
     readme_path = os.path.join(repo_dir, "README.md") # Pfad zur README in diesem Repo
     meta = extract_meta_json(readme_path)            # JSON-Metadaten aus der README holen
+	print("DEBUG repo_dir:", repo_dir)
+	print("DEBUG readme_path:", readme_path)
+	print("DEBUG meta:", meta)
 
     if not meta:                       				# Wenn keine verwertbaren Metadaten da sind
         continue                       				# Dieses Repo überspringe ich
