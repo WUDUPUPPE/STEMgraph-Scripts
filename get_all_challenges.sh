@@ -5,8 +5,12 @@
 
 set -euo pipefail                                       # Fehler bei ungültigen Variablen oder Befehlen sofort abbrechen
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"		# Absoluter Pfad zum Verzeichnis dieses Scripts, damit ich von überall aus arbeiten kann
+API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"						# Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
+WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"						# Absoluter Pfad zum Workspace-Verzeichnis, in dem das STEMgraph-API-Projekt liegt
+
 GITHUB_ORG="STEMgraph"                                  # GitHub Organisation, aus der die Challenge-Repos geholt werden
-BASE_DIR="./challenges"                                 # Hier werden die Repos lokal gespeichert
+BASE_DIR="$WORKSPACE_DIR/challenges"					# Zielordner, in dem die Challenge-Repos geklont werden sollen
 
 declare -A VISITED                                      # Merkt sich, welche UUIDs schon verarbeitet wurden, damit nichts doppelt läuft
 declare -a CLONED_REPOS                                 # Liste für Repos, die in diesem Lauf neu geklont wurden
