@@ -200,7 +200,7 @@ PY
 )
 
 # Zwei Zahlen aus der Ausgabe lesen: NODES EDGES
-read NODES EDGES <<< "$STATS_LINE"
+read -r NODES EDGES <<< "$STATS_LINE"
 
 # JSON-Statistik in Datei schreiben (überschreibt immer den letzten Stand)
 cat > "$STATS_FILE" <<EOF
