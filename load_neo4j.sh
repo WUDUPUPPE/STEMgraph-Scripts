@@ -5,7 +5,11 @@
 
 set -euo pipefail                                               # Script bricht bei Fehlern/ungesetzten Variablen oder Fehlern sauber ab
 
-INPUT_FILE="./graph-data.json"                                  # Hier liegt die von export_graph_data.sh erzeugte Graph-Datei
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"		# Absoluter Pfad zum Verzeichnis dieses Scripts, damit ich von überall aus arbeiten kann
+API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"						# Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
+WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"						# Absoluter Pfad zum Workspace-Verzeichnis, in dem das STEMgraph-API-Projekt liegt
+
+INPUT_FILE="$WORKSPACE_DIR/graph-data.json"                     # Pfad zur graph-data.json, die ich in Neo4j laden möchte
 
 # Prüfen, ob die graph-data.json überhaupt existiert
 if [[ ! -f "$INPUT_FILE" ]]; then                               # Wenn die Datei nicht gefunden wird
