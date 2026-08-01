@@ -8,8 +8,9 @@ set -euo pipefail                                               # Script bricht 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"		# Absoluter Pfad zum Verzeichnis dieses Scripts, damit ich von überall aus arbeiten kann
 API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"						# Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
 WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"						# Absoluter Pfad zum Workspace-Verzeichnis, in dem das STEMgraph-API-Projekt liegt
+DATA_DIR="$WORKSPACE_DIR/data"									# Ordner, in dem die erzeugten JSON-Dateien liegen
 
-INPUT_FILE="$WORKSPACE_DIR/graph-data.json"                     # Pfad zur graph-data.json, die ich in Neo4j laden möchte
+INPUT_FILE="$DATA_DIR/graph-data.json"							# Pfad zur graph-data.json, die ich in Neo4j laden möchte
 
 # Prüfen, ob die graph-data.json überhaupt existiert
 if [[ ! -f "$INPUT_FILE" ]]; then                               # Wenn die Datei nicht gefunden wird

@@ -9,8 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"		# Absoluter Pfad zum
 API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"						# Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
 WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"						# Absoluter Pfad zum Workspace-Verzeichnis, in dem das STEMgraph-API-Projekt liegt
 
-GITHUB_ORG="STEMgraph"                                  # GitHub Organisation, aus der die Challenge-Repos geholt werden
-BASE_DIR="$WORKSPACE_DIR/challenges"					# Zielordner, in dem die Challenge-Repos geklont werden sollen
+GITHUB_ORG="STEMgraph"											# GitHub Organisation, aus der die Challenge-Repos geholt werden
+BASE_DIR="$WORKSPACE_DIR/challenges"							# Zielordner, in dem die Challenge-Repos geklont werden sollen
+
+mkdir -p "$BASE_DIR"											# Zielordner anlegen, falls er noch nicht existiert
 
 declare -A VISITED                                      # Merkt sich, welche UUIDs schon verarbeitet wurden, damit nichts doppelt läuft
 declare -a CLONED_REPOS                                 # Liste für Repos, die in diesem Lauf neu geklont wurden
