@@ -1,160 +1,186 @@
 #!/usr/bin/env bash
 # get_all_challenges.sh
 # Holt alle Challenge-Repos von STEMgraph und verarbeitet gültige depends_on-UUIDs rekursiv
-# Am Ende wird zusätzlich ausgegeben, was neu geklont und was aktualisiert wurde
 
-set -euo pipefail                                       # Fehler bei ungültigen Variablen oder Befehlen sofort abbrechen
+set -euo pipefail                               # Fehler bei ungültigen Variablen oder Befehlen
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"		# Absoluter Pfad zum Verzeichnis dieses Scripts, damit ich von überall aus arbeiten kann
-API_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"						# Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
-WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"						# Absoluter Pfad zum Workspace-Verzeichnis, in dem das STEMgraph-API-Projekt liegt
+# Pfade: Script liegt in app/scripts/, Challenges und data sollen eine Ebene über der API landen
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"      # Absoluter Pfad zum Verzeichnis dieses Scripts
+API_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"                     # Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
+WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"                     # Absoluter Pfad zum Workspace-Verzeichnis (eine Ebene über der API)
+DATA_DIR="$WORKSPACE_DIR/data"                                  # Ordner für alle erzeugten JSON-Dateien
+mkdir -p "$DATA_DIR"                                            # data-Ordner anlegen, falls er noch nicht existiert
 
-GITHUB_ORG="STEMgraph"											# GitHub Organisation, aus der die Challenge-Repos geholt werden
-BASE_DIR="$WORKSPACE_DIR/challenges"							# Zielordner, in dem die Challenge-Repos geklont werden sollen
+GITHUB_ORG="STEMgraph"                          # GitHub Org ist auf STEMgraph gesetzt
+BASE_DIR="$WORKSPACE_DIR/challenges"            # Zielordner, in dem die Challenge-Repos geklont werden sollen
 
-mkdir -p "$BASE_DIR"											# Zielordner anlegen, falls er noch nicht existiert
+declare -A VISITED                              # Assoziatives Array, um bereits verarbeitete UUIDs nicht doppelt zu speichern
+declare -a CLONED_REPOS                         # Liste für Repos, die in diesem Lauf neu geklont wurden
+declare -a UPDATED_REPOS                        # Liste für Repos, die in diesem Lauf wirklich aktualisiert wurden
 
-declare -A VISITED                                      # Merkt sich, welche UUIDs schon verarbeitet wurden, damit nichts doppelt läuft
-declare -a CLONED_REPOS                                 # Liste für Repos, die in diesem Lauf neu geklont wurden
-declare -a UPDATED_REPOS                                # Liste für Repos, die in diesem Lauf wirklich aktualisiert wurden
-
-STATS_FILE="./stats_fetch.json"                         # Datei, in die ich am Ende die Statistik schreibe
+STATS_FILE="$DATA_DIR/stats_fetch.json"         # Datei, in die ich am Ende die Statistik schreibe
 
 # get_all_challenge: Holt ein Challenge-Repo, extrahiert gültige depends_on-UUIDs und ruft sich rekursiv auf
-get_all_challenge() {
-  local id="$1"                                         # Die aktuelle Challenge-ID, mit der diese Funktion arbeitet
+get_all_challenge() { 
+  local id="$1"                                 # Die Funktion wird in eine Variable gesetzt, so arbeite ich nur noch mit der id
 
   # Nur gültige UUIDs zulassen
-  if [[ ! "$id" =~ ^[0-9a-fA-F-]{36}$ ]]; then
-    echo "Überspringe ungültige ID: $id"                # Ausgabe falls die ID kein gültiges UUID-Format hat
-    return                                              # Ungültige ID nicht weiter verarbeiten
-  fi
+  if [[ ! "$id" =~ ^[0-9a-fA-F-]{36}$ ]]; then  # Sollte die id nicht 36 Zeichen lang sein wird sie übersprungen
+    echo "    Überspringe ungültige ID: $id"    # Gibt die ungültige ID aus
+    return                                      # Die Funktion wird verlassen
+  fi                                            # Funktion verlassen wenn id ungültig
 
-  # Bereits verarbeitet -> nichts doppelt machen
-  [[ -n "${VISITED[$id]:-}" ]] && return                # Wenn die ID schon im Array existiert, direkt zurück
-  VISITED["$id"]=1                                      # ID als verarbeitet markieren
+  # Bereits verarbeitet → nichts tun
+  [[ -n "${VISITED[$id]:-}" ]] && return        # Wenn die id im VISITED Array existiert, sofort zurückkehren
+  VISITED["$id"]=1                              # Makiert die id als gesehen oder verarbeitet
 
-  echo "==> [$id]"                                      # Ausgabe, welche Challenge gerade verarbeitet wird
+  echo "==> [$id]"                              # Gibt die id im Terminal aus die verarbeitet wird
 
-  local repo_url="https://github.com/${GITHUB_ORG}/${id}.git" # URL zum GitHub-Repo bauen
-  local target_dir="${BASE_DIR}/${id}"                  # Lokales Zielverzeichnis für das Repo
+  local repo_url="https://github.com/${GITHUB_ORG}/${id}.git" # Baut aus der GITUB_ORG und der BASE_DIR die URL fürs Repo zusammen
+  local target_dir="${BASE_DIR}/${id}"          # Lokaler Pfad wo das Repo abgelegt wird 
 
   # Repo clonen oder aktualisieren
-  if [[ -d "$target_dir/.git" ]]; then                  # Wenn dort schon ein Git-Repo liegt
-    echo "Update..."                                    # Hinweis, dass versucht wird zu aktualisieren
+  if [[ -d "$target_dir/.git" ]]; then          # Prüft ob im Zielodner schon ein Git-Repo existiert
+    echo "    Update..."                        # Gibt aus wenn das Repo aktualisiert wurde
+    local old_head=""
+    local new_head=""
+    old_head=$(git -C "$target_dir" rev-parse HEAD 2>/dev/null || echo "")
 
-    local old_head=""                                   # Variable für den Commit-Stand vor dem Pull
-    local new_head=""                                   # Variable für den Commit-Stand nach dem Pull
-
-    old_head=$(git -C "$target_dir" rev-parse HEAD 2>/dev/null || echo "") # Alten Commit-Hash lesen
-
-    if git -C "$target_dir" pull --ff-only --quiet; then # Repo aktualisieren, wenn möglich nur Fast-Forward
-      new_head=$(git -C "$target_dir" rev-parse HEAD 2>/dev/null || echo "") # Neuen Commit-Hash lesen
+    if git -C "$target_dir" pull --ff-only --quiet; then # Prüft ob das Repo aktualisiert werden kann
+      new_head=$(git -C "$target_dir" rev-parse HEAD 2>/dev/null || echo "")
 
       if [[ -n "$old_head" && -n "$new_head" && "$old_head" != "$new_head" ]]; then
-        UPDATED_REPOS+=("$id")                          # Nur wenn sich der Commit geändert hat, als aktualisiert merken
-        echo "Aktualisiert."                            # Ausgabe, dass wirklich neue Änderungen gezogen wurden
+        UPDATED_REPOS+=("$id")                  # Nur wenn sich der Commit geändert hat, als aktualisiert merken
+        echo "    Aktualisiert."                # Ausgabe, dass wirklich neue Änderungen gezogen wurden
       else
-        echo "Schon aktuell."                           # Ausgabe, wenn sich nichts geändert hat
+        echo "    Schon aktuell."               # Ausgabe, wenn sich nichts geändert hat
       fi
     else
-      echo "WARNUNG: Update fehlgeschlagen für $id"     # Warnung bei Fehler im Pull
-      return                                            # Repo bei Fehler nicht weiter auswerten
+      echo "    WARNUNG: Update fehlgeschlagen für $id" # Gibt eine Warnung aus wenn  das Update fehlschlägt
+      return                                    # Beim Fehlschlagen die Funktion verlassen
     fi
-  else
-    echo "Clone ${repo_url}"                            # Ausgabe, welches Repo neu geklont wird
-
-    if git clone --depth 1 --quiet "$repo_url" "$target_dir"; then # Repo neu klonen, nur mit letztem Stand
-      CLONED_REPOS+=("$id")                             # Geklonte Repo-ID in die Liste übernehmen
-      echo "Geklont."                                   # Ausgabe, dass das Klonen erfolgreich war
+  else # Wenn es nicht existiert wird es geklont
+    echo "    Clone ${repo_url}"                # Gibt das geklonte Repo aus
+    if git clone --depth 1 --quiet "$repo_url" "$target_dir"; then # Prüft ob das Klonen erfolgreich war, --ff onlyführt einen Fast Forward Pull aus, --quiet gibt weniger Ausgabe, --depth 1 klont nur den letzten Commit
+      CLONED_REPOS+=("$id")                     # Geklonte Repo-ID in die Liste übernehmen
+      echo "    Geklont."                       # Ausgabe, dass das Klonen erfolgreich war
     else
-      echo "WARNUNG: Clone fehlgeschlagen für $id"      # Warnung falls das Klonen fehlschlägt
-      return                                            # Bei Fehler Funktion verlassen
+      echo "    WARNUNG: Clone fehlgeschlagen für $id" # Gibt eine Warnung aus wenn das Klonen fehlschlägt
+      return                                    # Verlässt die Funktion
     fi
-  fi
+  fi                                            # Repo existiert lokal, weiter mit der Verarbeitung
 
   # README.md vorhanden?
-  local readme="${target_dir}/README.md"                # Pfad zur README des aktuellen Repos
-  if [[ ! -f "$readme" ]]; then
-    echo "WARNUNG: README.md nicht gefunden"            # Warnung wenn keine README existiert
-    return                                              #  Ohne README keine Metadaten auslesen
-  fi
+  local readme="${target_dir}/README.md"        # Prüft ob die README existiert
+  if [[ ! -f "$readme" ]]; then                 # Wenn die keine README vorhnden ist dann 
+    echo "    WARNUNG: README.md nicht gefunden" # Gibt er die Warnung aus
+    return                                      # Verlässt die Funktion
+  fi                                            # README vorhanden dann weiter Verarbeiten
 
-  # JSON aus Kommentar extrahieren
-  local meta_json                                       # Variable für den ausgelesenen JSON-Kommentar
-  meta_json=$(awk '
-    /!---/ {flag=1; next}
-    /---/ && flag {flag=0}
-    flag
-  ' "$readme")                                          # JSON-Block zwischen !--- und --- aus der README herausziehen
+  # JSON aus <!--- ... ---> Kommentar extrahieren
+  local meta_json 
+  meta_json=$(awk '/<!---/{flag=1;next} /--->/ {flag=0} flag' "$readme") # flag ist eine awk Variable die gesetzt wird beim STart Marker und beim End Marker zurückgesetzt wird 
 
-  if [[ -z "$meta_json" ]]; then
-    echo "WARNUNG: Kein JSON-Kommentar gefunden"        # Warnung wenn kein Metablock gefunden wurde
-    return                                              # Ohne JSON keine Abhängigkeiten auslesen
-  fi
+  if [[ -z "$meta_json" ]]; then                # Wenn Json Kommentar nicht existiert oder leer ist, dann
+    echo "    WARNUNG: Kein JSON-Kommentar gefunden" # Gibt die Warnung aus
+    return                                      # Verlässt die Funktion
+  fi                                            # Json Kommentar vorhanden, weiter Verarbeitet
 
   # Nur gültige UUIDs aus depends_on extrahieren
-  local deps                                            # Variable für die gültigen Dependency-UUIDs
-  deps=$(python3 -c "
-import json, sys, re
+  local deps
+  deps=$(python3 -c "                           # Python Skript um die JSON Daten zu parsen und gültige UUIDs aus depends_on zu extrahieren
+import json, sys, re                            # Importiert die Module json, sys und re
 
-try:
-    data = json.loads(sys.stdin.read())
-except Exception:
-    sys.exit(0)
+try: 
+    data = json.loads(sys.stdin.read())         # Liest die JSON Daten von stdin und parst sie in ein Python Dictionary
+except Exception:                               # wenn das fehlschlägt wird eine Exception ausgelöst
+    sys.exit(0)                                 # Bei Fehler wird mit Status false zurückgegeben
 
-deps = data.get('depends_on', [])
-uuid_pattern = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+deps = data.get('depends_on', [])               # Extrahiert die depends_on aus der JSON Datei
+uuid_pattern = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') # Definiert ein Regex Pattern für gültige UUIDs
 
-if isinstance(deps, list):
-    for dep in deps:
-        if isinstance(dep, str) and uuid_pattern.match(dep):
-            print(dep)
-" <<< "$meta_json")                                   # JSON an Python übergeben und dort nur gültige UUIDs herausfiltern
+if isinstance(deps, list):                      # Prüft ob depends_on eine Liste ist
+    for dep in deps:                            # Iteriert über die Elemente in depends_on
+        if isinstance(dep, str) and uuid_pattern.match(dep): # Prüft ob es ein STring ist und ob es dem UUID Pattern entspricht
+            print(dep)                          # Gibt die gültige UUID aus
+" <<< "$meta_json")                             # Leitet die JSON Datei an das Python Skript weiter
 
-  if [[ -z "$deps" ]]; then
-    echo "Keine gültigen UUID-Dependencies."          # Ausgabe, wenn keine gültigen Abhängigkeiten gefunden wurden
-    return                                            # Dann hier beenden
-  fi
+  if [[ -z "$deps" ]]; then                     # Wenn keine gültigen Dependencies gefunden
+    echo "    Keine gültigen UUID-Dependencies." # Gibt die Warnung aus
+    return                                     # Verlässt die Funktion
+  fi                                            # Gültige Abhängigkeit dann weiter Veraerbeitem
 
-  echo "Depends on:"                                  # Überschrift für die gefundenen Abhängigkeiten
-  while IFS= read -r dep_id; do                       # Jede Dependency-Zeile einzeln lesen
-    [[ -z "$dep_id" ]] && continue                    # Leere Zeilen überspringen
-    echo "- $dep_id"                                  # Abhängigkeit im Terminal ausgeben
-    get_all_challenge "$dep_id"                       # Rekursiver Aufruf mit der gefundenen Dependency
-  done <<< "$deps"                                    # Dependencies zeilenweise in die while-Schleife geben
+  echo "    Depends on:"                        # Gibt die UUIDs der Abhängigkeiten aus
+  while IFS= read -r dep_id; do                 # Liest die gültigen UUIDs Zeile für Zeile ein
+    [[ -z "$dep_id" ]] && continue              # Wenn Zeile leer überspringen
+    echo "      - $dep_id"                      # Gibt die gültige UUID aus
+    get_all_challenge "$dep_id"                 # Ruft die Funktion rekursiv mit der gültigen UUID auf
+  done <<< "$deps"                              # Leitet UUIDs an while Schleife weiter, damit sie Zeile für Zeile verarbeitet werden
 }
 
-# Prüfen, ob genau eine Start-ID übergeben wurde
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 <start-challenge-id>"               # Kurze Hilfe zur richtigen Verwendung
-  exit 1                                              # Script beenden, wenn das Argument fehlt
-fi
+echo "Lade Repo-Liste von github.com/${GITHUB_ORG}..." # GitHub-API wird abgefragt um die Repos der Organisation zu erhalten
+mkdir -p "$BASE_DIR"                            # Erstellt denn Zielordner wenn er nicht existiert, -p verhindert Fehler falls er existiert
 
-mkdir -p "$BASE_DIR"                                  # Zielordner anlegen, falls er noch nicht existiert
+all_ids=()                                      # Bash Array ind dem alle gültigen UUIDs gespeichert werden
 
-get_all_challenge "$1"                                # Start mit der übergebenen Challenge-ID
+for page in 1 2 3; do                           # GitHub API paginiert die Ergebnisse, hier werden bis zu 300 Repos abgefragt (100 pro Seite)
+  ids=$(curl -s "https://api.github.com/orgs/${GITHUB_ORG}/repos?per_page=100&page=${page}" |
+    python3 -c "                                # Python Skript filtert noch mal die Repos und extrahiert gültige UUIDs aus den Repo-Namen
+import json, sys, re                            # Importiert die Module json, sys und re
 
-echo # Leerzeile für bessere Lesbarkeit
-echo "Fertig. Insgesamt ${#VISITED[@]} Challenges verarbeitet." # Ausgabe der Gesamtanzahl
+try:
+    repos = json.loads(sys.stdin.read())        # Liest die JSON Daten von stdin und parst sie in ein Python Objekt, das eine Liste von Repos ist
+except Exception:                               # Bei Fehler wird eine Exception ausgelöst
+    sys.exit(0)                                 # Bei Fehler wird mit Status false zurückgegeben
 
-echo # Leerzeile
-echo "Neu geklont:"                                   # Überschrift für neu geklonte Repos
+uuid_pattern = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') # Definiert ein Regex Pattern für gültige UUIDs, das genau 36 Zeichen lang ist und die typische UUID-Struktur hat
+
+if isinstance(repos, list):                     # Prüft ob die Repos eine Liste ist
+    for r in repos:                             # Iteriert über die Repos
+        name = r.get('name', '')                # Extrahiert den Namen des Repos, falls er existiert, sonst wird ein leerer String verwendet
+        if isinstance(name, str) and uuid_pattern.match(name): # Prüft ob der Name ein String ist und ob er dem UUID Pattern entspricht
+            print(name)                         # Gibt die gültige UUID aus, die im Namen des Repos gefunden wurde
+")
+
+  [[ -z "$ids" ]] && break                      # Wenn keine UUIDs gefunden werden, bricht die Schleife ab
+
+  while IFS= read -r id; do                     # Liest die gefundenen UUIDs Zeile für Zeile ein
+    [[ -z "$id" ]] && continue                  # Wenn Zeile leer ist, überspringt sie
+    all_ids+=("$id")                            # Fügt die gültige UUID zum all_ids Array hinzu
+  done <<< "$ids"                               # Leitet UUIDs an while Schleife weiter, damit sie Zeile für Zeile verarbeitet werden
+done
+
+echo "Gefundene Challenge-Repos: ${#all_ids[@]}" # Gibt die Anzahl der gefundenen Challenge-Repos aus, die in all_ids gespeichert sind
+echo                                            # Leerzeile
+
+for id in "${all_ids[@]}"; do                   # Iteriert über alle gefundenen UUIDs in all_ids
+  get_all_challenge "$id"                       # Ruft die Funktion get_all_challenge mit jeder gefundenen UUID auf, um die Repos zu klonen und die Abhängigkeiten zu verarbeiten
+done                                            # Nachdem alle Repos verarbeitet wurden, gibt es eine Zusammenfassung der verarbeiteten Challenges aus
+
+echo                                            # Leerzeile
+echo "Fertig. Insgesamt ${#VISITED[@]} Challenge(s) verarbeitet:" # Gibt die Anzahl der verarbeiteten Challenges aus, die im VISITED Array gespeichert sind
+for id in "${!VISITED[@]}"; do                  # Iteriert über alle Schlüssel im VISITED Array, die die verarbeiteten UUIDs repräsentieren
+  echo "  ${BASE_DIR}/${id}"                    # Gibt den Pfad zu jedem verarbeiteten Challenge-Repo aus, basierend auf der UUID
+done                                            # Gibt die Liste der verarbeiteten Challenges aus
+
+# Zusammenfassung
+echo
+echo "Neu geklont:"
 if [[ ${#CLONED_REPOS[@]} -eq 0 ]]; then
-  echo "Keine neuen Repos geklont."                   # Falls in diesem Lauf nichts neu geklont wurde
+  echo "Keine neuen Repos geklont."
 else
   for id in "${CLONED_REPOS[@]}"; do
-    echo "- $id"                                      # Jede neu geklonte ID einzeln ausgeben
+    echo "- $id"
   done
 fi
 
-echo # Leerzeile
-echo "Aktualisiert:"                                  # Überschrift für wirklich geänderte Repos
+echo
+echo "Aktualisiert:"
 if [[ ${#UPDATED_REPOS[@]} -eq 0 ]]; then
-  echo "Keine Repos aktualisiert."                    # Falls kein Repo neue Änderungen hatte
+  echo "Keine Repos aktualisiert."
 else
   for id in "${UPDATED_REPOS[@]}"; do
-    echo "- $id"                                      # Jede wirklich aktualisierte ID einzeln ausgeben
+    echo "- $id"
   done
 fi
 
