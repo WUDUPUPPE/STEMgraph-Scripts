@@ -5,8 +5,12 @@
 
 set -euo pipefail 									# Script bricht bei Fehlern/ungesetzten Variablen sauber ab
 
-BASE_DIR="./challenges" 							# Hier liegen die von den anderen Scripts geklonten Challenge-Repos
-OUTPUT_FILE="./graph-data.json" 					# In diese Datei schreibe ich den kompletten Graph für das Frontend
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"		# Absoluter Pfad zum Verzeichnis dieses Scripts, damit ich von überall aus arbeiten kann
+API_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"						# Absoluter Pfad zum Root-Verzeichnis des STEMgraph-API-Projekts
+WORKSPACE_DIR="$(cd "$API_ROOT/.." && pwd)"						# Absoluter Pfad zum Workspace-Verzeichnis, in dem das STEMgraph-API-Projekt liegt
+
+BASE_DIR="$WORKSPACE_DIR/challenges"                            # Pfad zum Verzeichnis, in dem alle Challenges liegen
+OUTPUT_FILE="$WORKSPACE_DIR/graph-data.json"                    # Pfad zur graph-data.json, die ich erzeugen möchte
 
 STATS_FILE="./stats_export.json"                    # Datei, in die ich am Ende die Export-Statistik schreibe
 
