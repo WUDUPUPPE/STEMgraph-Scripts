@@ -12,6 +12,8 @@ declare -A VISITED                                      # Merkt sich, welche UUI
 declare -a CLONED_REPOS                                 # Liste für Repos, die in diesem Lauf neu geklont wurden
 declare -a UPDATED_REPOS                                # Liste für Repos, die in diesem Lauf wirklich aktualisiert wurden
 
+STATS_FILE="./stats_fetch.json"                         # Datei, in die ich am Ende die Statistik schreibe
+
 # get_all_challenge: Holt ein Challenge-Repo, extrahiert gültige depends_on-UUIDs und ruft sich rekursiv auf
 get_all_challenge() {
   local id="$1"                                         # Die aktuelle Challenge-ID, mit der diese Funktion arbeitet
@@ -149,3 +151,14 @@ else
     echo "- $id"                                      # Jede wirklich aktualisierte ID einzeln ausgeben
   done
 fi
+
+# JSON-Statistik in Datei schreiben (überschreibt immer den letzten Stand)
+cat > "$STATS_FILE" <<EOF
+{
+  "visited": ${#VISITED[@]},
+  "cloned": ${#CLONED_REPOS[@]},
+  "updated": ${#UPDATED_REPOS[@]}
+}
+EOF
+
+echo "Stats nach '$STATS_FILE' geschrieben." # Kurze Bestätigung für die Konsole
