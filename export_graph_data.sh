@@ -8,6 +8,8 @@ set -euo pipefail 									# Script bricht bei Fehlern/ungesetzten Variablen sau
 BASE_DIR="./challenges" 							# Hier liegen die von den anderen Scripts geklonten Challenge-Repos
 OUTPUT_FILE="./graph-data.json" 					# In diese Datei schreibe ich den kompletten Graph für das Frontend
 
+STATS_FILE="./stats_export.json"                    # Datei, in die ich am Ende die Export-Statistik schreibe
+
 # Prüfen, ob das Basisverzeichnis existiert
 if [[ ! -d "$BASE_DIR" ]]; then 					# Wenn es ./challenges nicht gibt
   echo "FEHLER: Basisverzeichnis '$BASE_DIR' nicht gefunden." # Hinweis ausgeben
@@ -157,9 +159,51 @@ with open(output_file, "w", encoding="utf-8") as f:
     # JSON schön formatiert mit Einrückungen schreiben
     json.dump(graph, f, indent=2, ensure_ascii=False)
 
+# Gesamtobjekt für die graph-data.json
+graph = {
+    "nodes": nodes,
+    "edges": edges
+}
+
+with open(output_file, "w", encoding="utf-8") as f:
+    json.dump(graph, f, indent=2, ensure_ascii=False)
+
+# Kurze Zusammenfassung als maschinenlesbare Zeile
+print(f"STATS {len(nodes)} {len(edges)}")
+
 # Kurze Zusammenfassung ausgeben
 print(f"Fertig. {len(nodes)} Nodes und {len(edges)} Edges nach '{output_file}' geschrieben.")
 PY
 # Ende des Python-Blocks
+
+# Nodes/Edges direkt aus der erzeugten graph-data.json lesen
+STATS_LINE=$(python3 - << 'PY'
+import os, json
+
+output_file = os.environ.get("OUTPUT_FILE", "./graph-data.json")
+
+try:
+    with open(output_file, "r", encoding="utf-8") as f:
+        graph = json.load(f)
+    nodes = graph.get("nodes", [])
+    edges = graph.get("edges", [])
+    print(len(nodes), len(edges))
+except Exception:
+    print(0, 0)
+PY
+)
+
+# Zwei Zahlen aus der Ausgabe lesen: NODES EDGES
+read NODES EDGES <<< "$STATS_LINE"
+
+# JSON-Statistik in Datei schreiben (überschreibt immer den letzten Stand)
+cat > "$STATS_FILE" <<EOF
+{
+  "nodes": ${NODES:-0},
+  "edges": ${EDGES:-0}
+}
+EOF
+
+echo "Stats nach '$STATS_FILE' geschrieben." # Kurze Bestätigung für die Konsole
 
 echo "Export abgeschlossen." # Abschlussmeldung im Bash-Teil
